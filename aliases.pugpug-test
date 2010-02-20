@@ -1,0 +1,5 @@
+#
+pugpug-test:        :include:/home/users/sakurai/mail-list/pugpug-test.run
+owner-pugpug-test:  mocapapa@g.pugpug.org
+pugpug-test-request:        mocapapa@g.pugpug.org
+pugpug-test-archive:        :include:/home/users/sakurai/mail-list/pugpug-test-archive.run
