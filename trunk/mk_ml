@@ -1,0 +1,126 @@
+#! /bin/csh -f
+#
+# usage ./mk_ml ml_name full_domain_name manager_email
+#
+
+set MLHOME=/home/users/sakurai/mail-list
+cd $MLHOME
+
+set error = 0
+if ("X"$1"X" == "XX") then
+  echo "バーチャルメーリングリスト名が必要です(e.g. test)。"
+  set error = 1
+endif
+
+if ("X"$2"X" == "XX") then
+  echo "バーチャルドメイン名が必要です(e.g. pugpug.org)。"
+  set error = 1
+endif
+
+if ("X"$3"X" == "XX") then
+  echo "メーリングリスト管理者アドレスが必要です(e.g. sakurai@pugpug.org)。"
+  set error = 1
+endif
+if ($error == 1) exit
+
+set full_domain_name = $2
+set domain_name = $2:r
+set actual_ml_name = $domain_name-$1
+set virtual_ml_name = $1
+
+#
+# 'A_ML_NAME'.runの作成
+#
+if (-f $actual_ml_name.run) then
+  echo "既に存在するためアボートします。"
+  exit
+endif
+
+cat >tmp <<EOF1
+"| /usr/local/lib/distribute -M A_ML_NAME -a ML_NAME -r ML_NAME@FULL_DOMAIN_NAME -f ADMIN_NAME -x A_ML_NAME-archive"
+EOF1
+sed -e 's/A_ML_NAME/'$actual_ml_name'/g' \
+    -e 's/ML_NAME/'$virtual_ml_name'/g' \
+    -e 's/ADMIN_NAME/'$3'/' \
+    -e 's/FULL_DOMAIN_NAME/'$full_domain_name'/' \
+    <tmp >$actual_ml_name.run
+chown sakurai.sakurai $actual_ml_name.run
+rm tmp
+
+#
+# 'A_ML_NAME'.accの作成
+#
+ln -f -s ${actual_ml_name}.rec ${actual_ml_name}.acc
+
+#
+# 'A_ML_NAME'-archive.run の作成
+#
+cat >tmp <<EOF2
+"| /usr/local/lib/archive -M A_ML_NAME"
+EOF2
+sed -e 's/A_ML_NAME/'$actual_ml_name'/g' \
+    <tmp >$actual_ml_name-archive.run
+chown sakurai.sakurai $actual_ml_name-archive.run
+rm tmp
+
+#
+# 'A_ML_NAME'をaliasesに登録
+#
+if (-f aliases) rm aliases
+cat >tmp <<EOF3
+#
+A_ML_NAME:        :include:$MLHOME/A_ML_NAME.run
+owner-A_ML_NAME:  ADMIN_NAME
+A_ML_NAME-request:        ADMIN_NAME
+A_ML_NAME-archive:        :include:$MLHOME/A_ML_NAME-archive.run
+EOF3
+sed -e 's/A_ML_NAME/'$actual_ml_name'/g' \
+    -e 's/ADMIN_NAME/'$3'/' <tmp >aliases.$actual_ml_name
+#   rm tmp
+#   newaliases
+endif
+rm tmp
+
+rm -f $actual_ml_name.seq
+
+if (-f virtual) rm virtual
+cat >tmp <<EOF4
+#
+ML_NAME@FULL_DOMAIN_NAME       A_ML_NAME
+owner-ML_NAME@FULL_DOMAIN_NAME	owner-A_ML_NAME
+ML_NAME-request@FULL_DOMAIN_NAME       A_ML_NAME-request
+ML_NAME-archive@FULL_DOMAIN_NAME       A_ML_NAME-archive
+@FULL_DOMAIN_NAME       ADMIN_NAME
+#
+EOF4
+sed -e  's/A_ML_NAME/'$actual_ml_name'/g' \
+    -e 's/ML_NAME/'$virtual_ml_name'/g' \
+    -e 's/ADMIN_NAME/'$3'/' \
+    -e 's/FULL_DOMAIN_NAME/'$full_domain_name'/' \
+    <tmp >virtual.$actual_ml_name
+rm tmp
+#
+# archive directoryの作成
+#
+
+if (-e $actual_ml_name) rm -rf $actual_ml_name
+mkdir $actual_ml_name
+chown sakurai.sakurai $actual_ml_name
+chmod 777 $actual_ml_name
+
+echo "$actual_ml_nameの作成が完了しました。"
+
+echo "この後は、aliases.$actual_ml_nameを/etc/postfix/aliasesに、"
+echo "virtual.$actual_ml_nameを/etc/postfix/virtualに登録します。"
+
+echo ""
+echo "$ cd /etc/postfix"
+echo "$ sudo cat aliases.$actual_ml_name >>/etc/postfix/aliases"
+echo "$ sudo newaliases"
+echo "$ sudo ci -l aliases"
+
+echo ""
+echo "$ sudo /usr/sbin/postmap hash:/etc/postfix/virtual <virtual"
+echo "$ sudo /etc/rc/init.d/postfix reload"
+echo "$ sudo ci -l virtual"
+

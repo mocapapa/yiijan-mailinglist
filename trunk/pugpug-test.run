@@ -1,0 +1,1 @@
+"| /usr/local/lib/distribute -M pugpug-test -a test -r test@pugpug.org -f mocapapa@g.pugpug.org -x pugpug-test-archive"
